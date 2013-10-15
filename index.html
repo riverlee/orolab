@@ -1,0 +1,17 @@
+---
+layout: default
+title: Orolab
+---
+
+<div id="home">
+  <p>
+    The site will be used in <a href="http://orolab.stanford.edu">Orolab</a>. Eventually, I will post bioinformatics pipelines for the projects I am doing, e.g, Chip-Seq, RNA-Seq. 
+  </p>
+  <h1>Posts List</h1>
+  <hr/>
+  <ul class="posts">
+    {% for post in site.posts %}
+      <li><span>{{ post.date | date_to_string }}</span> &raquo; <a href="{{ post.url }}">{{ post.title }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
