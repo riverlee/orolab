@@ -1,0 +1,52 @@
+
+<p>I used the following two softwares to do the peaks overlapping. Bedtools is easy and fast while ChIPpeakAnno could provide you more detailed information.</p>
+
+<ul>
+<li><a href="https://code.google.com/p/bedtools/">bedtools</a>: a flexible suite of utilities for comparing genomic features</li>
+
+<li><a href="http://www.bioconductor.org/packages/2.13/bioc/html/ChIPpeakAnno.html">ChIPpeakAnno</a> - An R pacakge.</li>
+</ul>
+
+<p><br /></p>
+
+<h2 id="bedtools">bedtools</h2>
+
+<p>Suppose we have peaks from P63 (p63.bed) and Foxo3 (fox3.bed), we would like to see which Foxo3 peaks overlap with P63</p>
+<div class='highlight'><pre><code class='bash'><span class='c'># without gap</span>
+intersectBed -a fox3.bed -b p63.bed -wa &gt; fox3.ovlp.p63.bed
+
+<span class='c'># with a 2k gap</span>
+windowBed -a fox3.bed -b p63.bed -w 2000 -u &gt;fox3.ovlp.2k.p63.bed
+</code></pre></div>
+<p><br /></p>
+
+<h2 id="chippeakanno">ChIPpeakAnno</h2>
+
+<p>Codes work in R environment.</p>
+<div class='highlight'><pre><code class='r'><span class='c1'># load library</span>
+library<span class='p'>(</span><span class='s'>&quot;ChIPpeakAnno&quot;</span><span class='p'>)</span>
+
+<span class='c1'># Read the bed file and store it as GRangedata object</span>
+readbed<span class='o'>&lt;-</span><span class='kr'>function</span><span class='p'>(</span>f<span class='p'>){</span>
+  peak.data.frame<span class='o'>&lt;-</span>read.table<span class='p'>(</span>f<span class='p'>,</span>header<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>,</span>sep<span class='o'>=</span><span class='s'>&quot;\t&quot;</span><span class='p'>,</span>stringsAsFactors<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>)[,</span><span class='m'>1</span><span class='o'>:</span><span class='m'>3</span><span class='p'>]</span>
+  peak.range<span class='o'>&lt;-</span>BED2RangedData<span class='p'>(</span>peak.data.frame<span class='p'>,</span>header<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>)</span>
+  peak.range
+<span class='p'>}</span>
+
+<span class='c1'># Read peaks</span>
+foxo3<span class='o'>&lt;-</span>readbed<span class='p'>(</span><span class='s'>&quot;fox3.bed&quot;</span><span class='p'>)</span>
+p63<span class='o'>&lt;-</span>readbed<span class='p'>(</span><span class='s'>&quot;p63.bed&quot;</span><span class='p'>)</span>
+
+<span class='c1'># Do 2k gap overlaps</span>
+o<span class='o'>&lt;-</span>findOverlappingPeaks<span class='p'>(</span>foxo3<span class='p'>,</span>p63<span class='p'>,</span>maxgap<span class='o'>=</span><span class='m'>2000</span><span class='p'>,</span>select<span class='o'>=</span><span class='s'>&quot;first&quot;</span><span class='p'>,</span>NameOfPeaks1<span class='o'>=</span><span class='s'>&quot;Foxo3&quot;</span><span class='p'>,</span>NameOfPeaks2<span class='o'>=</span><span class='s'>&quot;P63&quot;</span><span class='p'>,</span>annotate<span class='o'>=</span><span class='m'>1</span><span class='p'>)</span>
+
+<span class='c1'>## Write out overlapping peaks</span>
+out.dat<span class='o'>&lt;-</span>o<span class='o'>$</span>OverlappingPeaks<span class='p'>[</span>c<span class='p'>(</span><span class='m'>2</span><span class='p'>,</span><span class='m'>4</span><span class='p'>,</span><span class='m'>5</span><span class='p'>,</span><span class='m'>7</span><span class='p'>,</span><span class='m'>8</span><span class='p'>,</span><span class='m'>10</span><span class='p'>)]</span>
+out.dat<span class='o'>$</span>chr<span class='o'>&lt;-</span>paste<span class='p'>(</span><span class='s'>&quot;chr&quot;</span><span class='p'>,</span>out.dat<span class='o'>$</span>chr<span class='p'>,</span>sep<span class='o'>=</span><span class='s'>&quot;&quot;</span><span class='p'>)</span>
+write.table<span class='p'>(</span>out.dat<span class='p'>,</span>file<span class='o'>=</span><span class='s'>&quot;fox3.ovlp.2k.p63.bed&quot;</span><span class='p'>,</span>sep<span class='o'>=</span><span class='s'>&quot;\t&quot;</span><span class='p'>,</span>quote<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>,</span>row.names<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>)</span>
+
+<span class='c1'>## Write out the merge peaks.</span>
+out.dat<span class='o'>&lt;-</span>as.data.frame<span class='p'>(</span>o<span class='o'>$</span>MergedPeaks<span class='p'>)[</span><span class='m'>1</span><span class='o'>:</span><span class='m'>3</span><span class='p'>]</span>
+out.dat<span class='o'>$</span>space<span class='o'>&lt;-</span>paste<span class='p'>(</span><span class='s'>&quot;chr&quot;</span><span class='p'>,</span>out.dat<span class='o'>$</span>space<span class='p'>,</span>sep<span class='o'>=</span><span class='s'>&quot;&quot;</span><span class='p'>)</span>
+write.table<span class='p'>(</span>out.dat<span class='p'>,</span>file<span class='o'>=</span><span class='s'>&quot;fox3.p63.2k.merged.bed&quot;</span><span class='p'>,</span>sep<span class='o'>=</span><span class='s'>&quot;\t&quot;</span><span class='p'>,</span>quote<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>,</span>row.names<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>,</span>col.names<span class='o'>=</span><span class='kc'>FALSE</span><span class='p'>)</span>
+</code></pre></div>

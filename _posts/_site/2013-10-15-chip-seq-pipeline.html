@@ -1,0 +1,80 @@
+
+<p>Generally, the pipeline includes the following steps:</p>
+
+<ul>
+<li>Quality control on raw data by <a href="http://www.bioinformatics.babraham.ac.uk/projects/fastqc/">FastQC</a></li>
+
+<li>Align the reads to reference genome by <a href="http://bowtie-bio.sourceforge.net/index.shtml">Bowtie</a></li>
+
+<li>Make UCSC track</li>
+
+<li>Call peaks by <a href="http://liulab.dfci.harvard.edu/MACS/">MACS</a></li>
+
+<li>Annotating peaks by <a href="http://biowhat.ucsd.edu/homer/ngs/">HOMER</a></li>
+</ul>
+<div class='highlight'><pre><code class='bash'><span class='c'>#!/bin/bash</span>
+<span class='c'>###################################</span>
+<span class='c'># Author: Jiang Li</span>
+<span class='c'># Email:  riverlee2008@gmail.com</span>
+<span class='c'>###################################</span>
+<span class='c'># Chip-Seq analysis pipeline</span>
+<span class='c'>###################################</span>
+
+<span class='c'>###################################</span>
+<span class='c'># An example of Chip-Seq analysis</span>
+<span class='c'># Suppose your input file is my.fastq</span>
+<span class='c'>###################################</span>
+
+<span class='c'>###################################</span>
+<span class='c'># Raw data quality control</span>
+<span class='c'>###################################</span>
+fastqc -o . --nogroup my.fastq
+<span class='c'># In this case, we suppose there is no</span>
+<span class='c'># further steps to deals with raw data.</span>
+<span class='c'># We go ahead alignment with the raw fastq file.</span>
+
+<span class='c'>###################################</span>
+<span class='c'># Alignment</span>
+<span class='c'>###################################</span>
+<span class='c'># 1.1 Alignment </span>
+ <span class='nb'>echo</span> <span class='s1'>&#39;bowtie alignment&#39;</span> <span class='sb'>`</span>date<span class='sb'>`</span>
+ bowtie --chunkmbs 256 -p 24 -S -a -m 1 --best --strata -t mm9 my.fastq my.sam 
+
+<span class='c'># 1.2 Sam to bam and only output those mapped</span>
+<span class='nb'>echo</span> <span class='s2'>&quot;sam to bam (only output mapped)&quot;</span> <span class='sb'>`</span>date<span class='sb'>`</span>
+samtools view -bS  -F 4 my.sam &gt;my_norm.bam
+
+<span class='c'># 1.3 sort bam</span>
+<span class='nb'>echo</span> <span class='s2'>&quot;sort bam&quot;</span> <span class='sb'>`</span>date<span class='sb'>`</span>
+samtools sort my_norm.bam my_norm_sorted
+
+<span class='c'># 1.4 Delete not sorted bam</span>
+<span class='nb'>echo</span> <span class='s2'>&quot;delete bam&quot;</span> <span class='sb'>`</span>date<span class='sb'>`</span>
+rm -rf my_norm.bam
+
+<span class='c'># 1.5 remove duplicates</span>
+<span class='nb'>echo</span> <span class='s2'>&quot;remove duplicates&quot;</span> <span class='sb'>`</span>date<span class='sb'>`</span>
+samtools rmdup -s my_norm_sorted.bam my_norm_sorted_rmdup.bam
+
+<span class='c'>###################################</span>
+<span class='c'># Make UCSC Tracks</span>
+<span class='c'>###################################</span>
+<span class='c'># 2.1 make bedGraph</span>
+<span class='nb'>echo</span> <span class='s2'>&quot;make bedgraph&quot;</span> <span class='sb'>`</span>date<span class='sb'>`</span>
+genomeCoverageBed -bg -ibam my_norm_sorted_rmdup.bam -split -g mm9.chrom.sizes &gt;my_norm_sorted_rmdup.bedGraph
+
+<span class='c'># 2.2 make bigwig</span>
+bedGraphToBigWig my_norm_sorted_rmdup.bedGraph mm9.chrom.sizes my_norm_sorted_rmdup.bw
+
+<span class='c'>###################################</span>
+<span class='c'># Call peaks</span>
+<span class='c'>###################################</span>
+<span class='nb'>test</span> ! -r callpeaks <span class='o'>&amp;&amp;</span> mkdir callpeaks
+<span class='nb'>cd </span>callpeaks
+macs14 -t ../my_norm_sorted_rmdup.bam -f BAM -g mm -n my
+
+<span class='c'>###################################</span>
+<span class='c'># Peak annotation by Homme</span>
+<span class='c'>###################################</span>
+annotatePeaks.pl my_peaks.bed mm9 &gt; my_peaks_anno.txt
+</code></pre></div>

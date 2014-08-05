@@ -1,0 +1,23 @@
+
+<p>This script helps you to visualize occupancy around peak centers in a heatmap way. The input are peaks (either peak center file (chr center) or bed format file (chr start end)) and alignment result (either in bam format or bed format). The script isavailable on my <a href="https://github.com/riverlee/Personal/blob/master/getCenteredSig.pl">github</a></p>
+
+<p><br /></p>
+
+<h2 id="usage">Usage</h2>
+<div class='highlight'><pre><code class='bash'>Usage: getCenteredSig.pl -a &lt;alignfile&gt; -c &lt;centerfile&gt; -o &lt;output&gt; -e <span class='o'>[</span>extend bp<span class='o'>]</span> -w <span class='o'>[</span>window size<span class='o'>]</span> -n/-non
+                -a  alignment file in bed format
+                -c  center position file, format is <span class='s2'>&quot;chr    pos&quot;</span>
+                -b  is the center input file in bed format, thus will estimate the center by <span class='o'>(</span>start+end<span class='o'>)</span>/2, defalut 0, values is 0 or 1
+                -o  output file name
+                -e  extend length around the center, extend by upstream extend/2 bp and downstream extend/2bp, default 8000bp
+                -w  window size to get the signal, default is 10,<span class='o'>(</span>1 means get the average coverage <span class='k'>for </span>each base around the extended region<span class='o'>)</span>
+                -n  normalized the signal to RPKM or use the raw count, values is 0 or 1
+                -bam whether input alignment file is in bam/sam format, values is 0 or 1,default 0
+                -len the average <span class='nb'>read </span>length, default is 36
+                -h  display this <span class='nb'>help </span>message
+</code></pre></div>
+<h3 id="example">Example</h3>
+
+<p>Suppose you have peaks from P63 named as p63.bed, and you would like to see the JUN occupancy around these p63 peaks in K562 cell line (the alignment of JUN in K562 is named as K562_JUN.bam).</p>
+<div class='highlight'><pre><code class='bash'>perl getCenteredSig.pl -c p63.bed -a K562_JUN.bam -b 1 -o JUN_P63_8kb_w20bp.signal.txt -n 1 -bam 1
+</code></pre></div>

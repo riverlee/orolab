@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Generating matrix for treeview</title>
+        <meta name="viewport" content="width=device-width">
+
+        <!-- syntax highlighting CSS -->
+        <link rel="stylesheet" href="/css/syntax.css">
+
+        <!-- Custom CSS -->
+        <link rel="stylesheet" href="/css/main.css">
+
+    </head>
+    <body>
+
+        <div class="site">
+          <div class="header">
+            <h1 class="title"><a href="/">Orolab</a></h1>
+            <a class="extra" href="/">home</a>
+          </div>
+
+          <h2>Generating matrix for treeview</h2>
+<p class="meta">02 Dec 2013</p>
+
+<div class="post">
+<p>This script helps you to visualize occupancy around peak centers in a heatmap way. The input are peaks (either peak center file (chr center) or bed format file (chr start end)) and alignment result (either in bam format or bed format). The script is available on my <a href="https://github.com/riverlee/Personal/blob/master/getCenteredSig.pl">github</a>.</p>
+
+<p><br/></p>
+
+<h2>Usage</h2>
+
+<div class="highlight"><pre><code class="bash">Usage: getCenteredSig.pl -a &lt;alignfile&gt; -c &lt;centerfile&gt; -o &lt;output&gt; -e <span class="o">[</span>extend bp<span class="o">]</span> -w <span class="o">[</span>window size<span class="o">]</span> -n/-non
+        -a  alignment file in bed format
+        -c  center position file, format is <span class="s2">&quot;chr    pos&quot;</span>
+        -b  is the center input file in bed format, thus will estimate the center by <span class="o">(</span>start+end<span class="o">)</span>/2, defalut 0, values is 0 or 1
+        -o  output file name
+        -e  extend length around the center, extend by upstream extend/2 bp and downstream extend/2bp, default 8000bp
+        -w  window size to get the signal, default is 10,<span class="o">(</span>1 means get the average coverage <span class="k">for </span>each base around the extended region<span class="o">)</span>
+        -n  normalized the signal to RPKM or use the raw count, values is 0 or 1
+        -bam whether input alignment file is in bam/sam format, values is 0 or 1,default 0
+        -len the average <span class="nb">read </span>length, default is 36
+        -h  display this <span class="nb">help </span>message
+</code></pre>
+</div>
+
+<h3>Example</h3>
+
+<p>Suppose you have peaks from P63 named as p63.bed, and you would like to see the JUN occupancy around these p63 peaks in K562 cell line (the alignment of JUN in K562 is named as K562_JUN.bam).</p>
+
+<div class="highlight"><pre><code class="bash">perl getCenteredSig.pl -c p63.bed -a K562_JUN.bam -b 1 -o JUN_P63_8kb_w20bp.signal.txt -n 1 -bam 1
+</code></pre>
+</div>
+
+<h2>Visualization</h2>
+
+<p>There are two ways to visualize the data.</p>
+
+<ul>
+<li>By R</li>
+<li>Use <a href="http://bonsai.hgc.jp/%7Emdehoon/software/cluster/software.htm">Cluster</a> first and then apply <a href="http://jtreeview.sourceforge.net/">Treeview</a></li>
+</ul>
+
+<h3>By R</h3>
+
+<div class="highlight"><pre><code class="r"><span class="c1"># 1) Load data</span>
+my.read<span class="o">&lt;-</span><span class="kr">function</span><span class="p">(</span>f<span class="p">){</span>
+  d<span class="o">&lt;-</span>read.table<span class="p">(</span>f<span class="p">,</span>sep<span class="o">=</span><span class="s">&quot;\t&quot;</span><span class="p">,</span>header<span class="o">=</span><span class="kc">FALSE</span><span class="p">,</span>row.names<span class="o">=</span><span class="m">1</span><span class="p">)</span>
+  d<span class="o">&lt;-</span>log2<span class="p">(</span>d<span class="m">+1</span><span class="p">)</span>
+  tmp<span class="o">&lt;-</span>unlist<span class="p">(</span>d<span class="p">)</span>
+  q99<span class="o">&lt;-</span>quantile<span class="p">(</span>tmp<span class="p">,</span>probs<span class="o">=</span><span class="m">0.99</span><span class="p">)</span>
+  d<span class="p">[</span>d<span class="o">&gt;=</span>q99<span class="p">]</span><span class="o">&lt;-</span>q99
+  d
+<span class="p">}</span>
+
+dat1<span class="o">&lt;-</span>my.read<span class="p">(</span><span class="s">&quot;JUN_P63_8kb_w20bp.signal.txt&quot;</span><span class="p">)</span>
+dat1.rowMean<span class="o">&lt;-</span>rowMeans<span class="p">(</span>dat1<span class="p">)</span>
+dat1.colMean<span class="o">&lt;-</span>colMeans<span class="p">(</span>dat1<span class="p">)</span>
+
+<span class="c1"># 2) Sort data</span>
+myorder<span class="o">&lt;-</span>order<span class="p">(</span>dat1.rowMean<span class="p">,</span>decreasing<span class="o">=</span><span class="kc">FALSE</span><span class="p">)</span>
+dat1<span class="o">&lt;-</span>dat1<span class="p">[</span>myorder<span class="p">,]</span>
+
+<span class="c1"># 3) Draw heatmap</span>
+min.raw<span class="o">&lt;-</span>round<span class="p">(</span>min<span class="p">(</span>dat1<span class="p">),</span><span class="m">2</span><span class="p">)</span>
+max.raw<span class="o">&lt;-</span>round<span class="p">(</span>max<span class="p">(</span>dat1<span class="p">),</span><span class="m">2</span><span class="p">)</span>
+cols<span class="o">&lt;-</span>colorRampPalette<span class="p">(</span>c<span class="p">(</span><span class="s">&quot;green&quot;</span><span class="p">,</span> <span class="s">&quot;black&quot;</span><span class="p">,</span> <span class="s">&quot;red&quot;</span><span class="p">))(</span><span class="m">100</span><span class="p">)</span>
+
+z <span class="o">&lt;-</span> seq<span class="p">(</span>min.raw<span class="p">,</span> max.raw<span class="p">,</span> length <span class="o">=</span> length<span class="p">(</span>cols<span class="p">))</span>
+
+png<span class="p">(</span>filename<span class="o">=</span><span class="s">&quot;JUN_P63_8k.png&quot;</span><span class="p">,</span>width<span class="o">=</span><span class="m">1600</span><span class="p">,</span>heigh<span class="o">=</span><span class="m">1200</span><span class="p">,</span>res<span class="o">=</span><span class="m">200</span><span class="p">)</span>
+
+par<span class="p">(</span>mar<span class="o">=</span>c<span class="p">(</span><span class="m">2</span><span class="p">,</span><span class="m">1</span><span class="p">,</span><span class="m">1</span><span class="p">,</span><span class="m">1</span><span class="p">))</span>
+layout<span class="p">(</span>matrix<span class="p">(</span>c<span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="m">2</span><span class="p">,</span><span class="m">3</span><span class="p">),</span>nrow<span class="o">=</span><span class="m">3</span><span class="p">,</span>ncol<span class="o">=</span><span class="m">1</span><span class="p">,</span>byrow<span class="o">=</span><span class="kc">TRUE</span><span class="p">),</span>heights<span class="o">=</span>c<span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="m">4</span><span class="p">,</span><span class="m">4</span><span class="p">))</span>
+
+<span class="c1"># 3.1 for the color bar</span>
+image<span class="p">(</span>z <span class="o">=</span> matrix<span class="p">(</span>z<span class="p">,</span> ncol <span class="o">=</span> <span class="m">1</span><span class="p">),</span> col <span class="o">=</span> cols<span class="p">,</span> xaxt <span class="o">=</span> <span class="s">&quot;n&quot;</span><span class="p">,</span> yaxt <span class="o">=</span> <span class="s">&quot;n&quot;</span><span class="p">)</span>
+axis<span class="p">(</span>side<span class="o">=</span><span class="m">1</span><span class="p">,</span>at<span class="o">=</span>c<span class="p">(</span><span class="m">0</span><span class="p">,</span><span class="m">1</span><span class="p">),</span>c<span class="p">(</span>min.raw<span class="p">,</span>max.raw<span class="p">),</span>tick<span class="o">=</span><span class="k-Variable">F</span><span class="p">)</span>
+
+<span class="c1"># 3.2 for the heatmap</span>
+image<span class="p">(</span><span class="m">1</span><span class="o">:</span>ncol<span class="p">(</span>dat1<span class="p">),</span><span class="m">1</span><span class="o">:</span>nrow<span class="p">(</span>dat1<span class="p">),</span>t<span class="p">(</span>dat1<span class="p">),</span>xlab<span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">,</span>ylab<span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">,</span>col<span class="o">=</span>cols<span class="p">,</span>axes<span class="o">=</span><span class="kc">FALSE</span><span class="p">,</span>main<span class="o">=</span><span class="s">&quot;H1esc&quot;</span><span class="p">,</span>cex.main<span class="o">=</span><span class="m">0.9</span><span class="p">)</span>
+abline<span class="p">(</span>v<span class="o">=</span><span class="m">200</span><span class="p">,</span>col<span class="o">=</span><span class="s">&#39;yellow&#39;</span><span class="p">,</span>lwd<span class="o">=</span><span class="m">1</span><span class="p">)</span>
+
+<span class="c1"># 3.3 for the average signal around center</span>
+ymax<span class="o">&lt;-</span>max<span class="p">(</span>dat1.colMean<span class="p">)</span>
+plot<span class="p">(</span>dat1.colMean<span class="p">,</span>xlab<span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">,</span>type<span class="o">=</span><span class="s">&quot;l&quot;</span><span class="p">,</span>ylab<span class="o">=</span><span class="s">&quot;Intensity&quot;</span><span class="p">,</span>cex.lab<span class="o">=</span><span class="m">0.6</span><span class="p">,</span>cex.axis<span class="o">=</span><span class="m">0.6</span><span class="p">,</span>xaxt<span class="o">=</span><span class="s">&#39;n&#39;</span><span class="p">,</span>col<span class="o">=</span><span class="s">&#39;blue&#39;</span><span class="p">,</span>mgp <span class="o">=</span> c<span class="p">(</span><span class="m">2</span><span class="p">,</span> <span class="m">1</span><span class="p">,</span> <span class="m">0</span><span class="p">),</span>lty<span class="o">=</span><span class="m">1</span><span class="p">,</span>ylim<span class="o">=</span>c<span class="p">(</span><span class="m">0</span><span class="p">,</span>ymax<span class="p">))</span>
+axis<span class="p">(</span>side<span class="o">=</span><span class="m">1</span><span class="p">,</span>at<span class="o">=</span>c<span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="m">100</span><span class="p">,</span><span class="m">200</span><span class="p">,</span><span class="m">300</span><span class="p">,</span><span class="m">400</span><span class="p">,</span><span class="m">500</span><span class="p">,</span><span class="m">600</span><span class="p">,</span><span class="m">700</span><span class="p">,</span><span class="m">800</span><span class="p">)</span><span class="o">/</span><span class="m">2</span><span class="p">,</span>labels<span class="o">=</span>c<span class="p">(</span><span class="s">&quot;-4kb&quot;</span><span class="p">,</span><span class="s">&quot;-3kb&quot;</span><span class="p">,</span><span class="s">&quot;-2kb&quot;</span><span class="p">,</span><span class="s">&quot;-1kb&quot;</span><span class="p">,</span><span class="s">&quot;0&quot;</span><span class="p">,</span><span class="s">&quot;+1kb&quot;</span><span class="p">,</span><span class="s">&quot;+2kb&quot;</span><span class="p">,</span><span class="s">&quot;+3kb&quot;</span><span class="p">,</span><span class="s">&quot;+4kb&quot;</span><span class="p">),</span>cex.lab<span class="o">=</span><span class="m">0.6</span><span class="p">,</span>cex.axis<span class="o">=</span><span class="m">0.6</span><span class="p">,</span>mgp <span class="o">=</span> c<span class="p">(</span><span class="m">0</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="m">0</span>
+abline<span class="p">(</span>v<span class="o">=</span><span class="m">200</span><span class="p">,</span>col<span class="o">=</span><span class="s">&#39;grey&#39;</span><span class="p">,</span>lwd<span class="o">=</span><span class="m">2</span><span class="p">)</span>
+legend<span class="p">(</span><span class="s">&#39;topright&#39;</span><span class="p">,</span>legend<span class="o">=</span>c<span class="p">(</span><span class="s">&quot;H1esc&quot;</span><span class="p">,</span><span class="s">&quot;Helas3&quot;</span><span class="p">,</span><span class="s">&quot;Hepg2&quot;</span><span class="p">,</span><span class="s">&quot;Huvec&quot;</span><span class="p">,</span><span class="s">&quot;K562&quot;</span><span class="p">),</span>lty<span class="o">=</span><span class="m">1</span><span class="o">:</span><span class="m">5</span><span class="p">,</span>col<span class="o">=</span>c<span class="p">(</span><span class="s">&#39;blue&#39;</span><span class="p">,</span><span class="s">&#39;red&#39;</span><span class="p">,</span><span class="s">&quot;purple&quot;</span><span class="p">,</span><span class="s">&quot;brown&quot;</span><span class="p">,</span><span class="s">&quot;orange&quot;</span><span class="p">),</span>bty<span class="o">=</span><span class="s">&#39;n&#39;</span><span class="p">)</span>
+dev.off<span class="p">()</span>
+</code></pre>
+</div>
+
+<h3>Use Cluster and then appy Treeview</h3>
+
+<p>Make use when you use Cluster to do clustering, just cluster rows.</p>
+
+</div>
+
+
+          <div class="footer">
+            <div class="contact">
+              <p>
+                Jiang Li<br />
+                Bioinformatician at Stanford<br />
+              </p>
+            </div>
+            <div class="contact">
+              <p>
+                <a href="https://github.com/riverlee">github.com/riverlee</a><br />
+                <a href="mailto:jiangli@stanford.edu">jiangli@stanford.edu</a>
+              </p>
+            </div>
+          </div>
+        </div>
+    <a href="http://github.com/riverlee/orolab"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub" /></a>
+
+    </body>
+</html>
