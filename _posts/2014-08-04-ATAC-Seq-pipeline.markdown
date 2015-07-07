@@ -44,7 +44,7 @@ bowtie --chunkmbs 256 -p 24 -S  -m 1 -X 2000  -t hg19  R1.fq R2.fq my.sam
 samtools view -bS  my.sam |samtools sort - my
 
 # 1.2 Sam to bam and only output those mapped
-samtools view -b -F my.bam >my_norm_sorted.bam
+samtools view -b -F 4 my.bam >my_norm_sorted.bam
 
 # 1.3 Delete not sorted bam
 echo "delete bam" `date`
